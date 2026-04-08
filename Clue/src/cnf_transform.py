@@ -5,7 +5,7 @@ El pipeline completo to_cnf() llama a todas las transformaciones en orden.
 
 from __future__ import annotations
 
-from src.logic_core import And, Atom, Formula, Not, Or
+from src.logic_core import And, Atom, Formula, Not, Or, Iff, Implies
 
 
 # --- FUNCION GUÍA SUMINISTRADA COMPLETA ---
@@ -60,7 +60,30 @@ def eliminate_iff(formula: Formula) -> Formula:
           y solo transforma cuando encuentras un Iff.
     """
     # === YOUR CODE HERE ===
-    raise NotImplementedError("Implementa eliminate_iff()")
+    if isinstance(formula, Atom):
+        return formula
+ 
+    if isinstance(formula, Iff):
+        # Primero aplica recursivamente a cada lado
+        left = eliminate_iff(formula.left)
+        right = eliminate_iff(formula.right)
+        # Iff(a, b) -> And(Implies(a, b), Implies(b, a))
+        return And(Implies(left, right), Implies(right, left))
+ 
+    if isinstance(formula, Implies):
+        return Implies(eliminate_iff(formula.antecedent), eliminate_iff(formula.consequent))
+ 
+    if isinstance(formula, Not):
+        return Not(eliminate_iff(formula.operand))
+ 
+    if isinstance(formula, And):
+        return And(*(eliminate_iff(c) for c in formula.conjuncts))
+ 
+    if isinstance(formula, Or):
+        return Or(*(eliminate_iff(d) for d in formula.disjuncts))
+ 
+    return formula
+
     # === END YOUR CODE ===
 
 
@@ -81,7 +104,26 @@ def eliminate_implication(formula: Formula) -> Formula:
           solo los nodos Implies.
     """
     # === YOUR CODE HERE ===
-    raise NotImplementedError("Implementa eliminate_implication()")
+    if isinstance(formula, Atom):
+        return formula
+ 
+    if isinstance(formula, Implies):
+        # Primero aplica recursivamente a cada lado
+        antecedent = eliminate_implication(formula.antecedent)
+        consequent = eliminate_implication(formula.consequent)
+        # Implies(a, b) -> Or(Not(a), b)
+        return Or(Not(antecedent), consequent)
+ 
+    if isinstance(formula, Not):
+        return Not(eliminate_implication(formula.operand))
+ 
+    if isinstance(formula, And):
+        return And(*(eliminate_implication(c) for c in formula.conjuncts))
+ 
+    if isinstance(formula, Or):
+        return Or(*(eliminate_implication(d) for d in formula.disjuncts))
+ 
+    return formula
     # === END YOUR CODE ===
 
 
@@ -111,7 +153,34 @@ def push_negation_inward(formula: Formula) -> Formula:
           asi que no necesitas manejar esos tipos.
     """
     # === YOUR CODE HERE ===
-    raise NotImplementedError("Implementa push_negation_inward()")
+    if isinstance(formula, Atom):
+        return formula
+ 
+    if isinstance(formula, Not):
+        operand = formula.operand
+ 
+        if isinstance(operand, And):
+            # Not(And(a, b, ...)) -> Or(Not(a), Not(b), ...)
+            return Or(*(push_negation_inward(Not(c)) for c in operand.conjuncts))
+ 
+        if isinstance(operand, Or):
+            # Not(Or(a, b, ...)) -> And(Not(a), Not(b), ...)
+            return And(*(push_negation_inward(Not(d)) for d in operand.disjuncts))
+ 
+        if isinstance(operand, Atom):
+            # Not(Atom): dejar como está
+            return formula
+ 
+        # Not(Not(...)): recursa hacia adentro (double negation se elimina después)
+        return Not(push_negation_inward(operand))
+ 
+    if isinstance(formula, And):
+        return And(*(push_negation_inward(c) for c in formula.conjuncts))
+ 
+    if isinstance(formula, Or):
+        return Or(*(push_negation_inward(d) for d in formula.disjuncts))
+ 
+    return formula
     # === END YOUR CODE ===
 
 
@@ -138,7 +207,36 @@ def distribute_or_over_and(formula: Formula) -> Formula:
           asi que solo veras Atom, Not(Atom), And y Or.
     """
     # === YOUR CODE HERE ===
-    raise NotImplementedError("Implementa distribute_or_over_and()")
+    if isinstance(formula, Atom) or isinstance(formula, Not):
+        return formula
+ 
+    if isinstance(formula, And):
+        # Recursa sobre cada conjunción
+        return And(*(distribute_or_over_and(c) for c in formula.conjuncts))
+ 
+    if isinstance(formula, Or):
+        # Primero distribuye recursivamente en los hijos
+        disjuncts = [distribute_or_over_and(d) for d in formula.disjuncts]
+ 
+        # Busca si algún hijo es un And
+        for i, d in enumerate(disjuncts):
+            if isinstance(d, And):
+                # Los demás disjuntos (todo excepto el And)
+                rest = disjuncts[:i] + disjuncts[i+1:]
+ 
+                # Distribuye: Or(rest..., And(b1, b2, ...)) -> And(Or(rest..., b1), Or(rest..., b2), ...)
+                new_conjuncts = []
+                for conjunct in d.conjuncts:
+                    new_or = Or(*rest, conjunct) if rest else conjunct
+                    new_conjuncts.append(new_or)
+ 
+                # Recursa sobre el resultado (puede haber más distribuciones)
+                return distribute_or_over_and(And(*new_conjuncts))
+ 
+        # No hay And entre los hijos: retorna el Or con hijos ya procesados
+        return Or(*disjuncts)
+ 
+    return formula
     # === END YOUR CODE ===
 
 
@@ -164,7 +262,34 @@ def flatten(formula: Formula) -> Formula:
           Si al final solo queda 1 elemento, retornalo directamente.
     """
     # === YOUR CODE HERE ===
-    raise NotImplementedError("Implementa flatten()")
+    if isinstance(formula, Atom) or isinstance(formula, Not):
+        return formula
+ 
+    if isinstance(formula, And):
+        flat = []
+        for c in formula.conjuncts:
+            c = flatten(c)
+            if isinstance(c, And):
+                flat.extend(c.conjuncts)
+            else:
+                flat.append(c)
+        if len(flat) == 1:
+            return flat[0]
+        return And(*flat)
+ 
+    if isinstance(formula, Or):
+        flat = []
+        for d in formula.disjuncts:
+            d = flatten(d)
+            if isinstance(d, Or):
+                flat.extend(d.disjuncts)
+            else:
+                flat.append(d)
+        if len(flat) == 1:
+            return flat[0]
+        return Or(*flat)
+ 
+    return formula
     # === END YOUR CODE ===
 
 
