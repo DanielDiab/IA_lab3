@@ -40,9 +40,89 @@ def crear_kb() -> KnowledgeBase:
     syntek_corp    = Term("syntek_corp")
     sala_cultivos  = Term("sala_cultivos")
 
-    # === YOUR CODE HERE ===
+    # --- Hechos ---
+    # Dra. Santos tiene documentación oficial de ausencia del país
+    kb.add_fact(Predicate("documentacion_oficial_ausencia", (dra_santos,)))
+    # Director Vega tiene registro oficial de conferencia en Bruselas
+    kb.add_fact(Predicate("registro_oficial_conferencia", (director_vega,)))
+    # Técnico Ríos no tiene coartada para el fin de semana
+    kb.add_fact(Predicate("sin_coartada", (tec_rios,)))
+    # Asistente Mora no tiene coartada para el fin de semana
+    kb.add_fact(Predicate("sin_coartada", (asistente_mora,)))
+    # Técnico Ríos tuvo acceso registrado a la sala de cultivos el sábado
+    kb.add_fact(Predicate("acceso_registrado", (tec_rios, sala_cultivos)))
+    # Asistente Mora también tuvo acceso registrado a la sala de cultivos el sábado
+    kb.add_fact(Predicate("acceso_registrado", (asistente_mora, sala_cultivos)))
+    # Técnico Ríos recibió pagos de Syntek Corp.
+    kb.add_fact(Predicate("recibio_pagos_de", (tec_rios, syntek_corp)))
+    # Syntek Corp. es la empresa rival que se beneficia del sabotaje
+    kb.add_fact(Predicate("empresa_beneficiada", (syntek_corp,)))
+    # Asistente Mora acusa directamente al Técnico Ríos
+    kb.add_fact(Predicate("acusa", (asistente_mora, tec_rios)))
 
-    # === END YOUR CODE ===
+    # --- Reglas ---
+    X = Term("$X")
+    Y = Term("$Y")
+    E = Term("$E")
+    L = Term("$L")
+
+    # Documentación oficial de ausencia del país constituye coartada verificada
+    kb.add_rule(Rule(
+        head=Predicate("coartada_verificada", (X,)),
+        body=(Predicate("documentacion_oficial_ausencia", (X,)),),
+    ))
+
+    # Registro oficial de conferencia también constituye coartada verificada
+    kb.add_rule(Rule(
+        head=Predicate("coartada_verificada", (X,)),
+        body=(Predicate("registro_oficial_conferencia", (X,)),),
+    ))
+
+    # Quien tiene coartada verificada queda descartado como autor del sabotaje
+    kb.add_rule(Rule(
+        head=Predicate("descartado", (X,)),
+        body=(Predicate("coartada_verificada", (X,)),),
+    ))
+
+    # Quien recibió pagos de una empresa que se beneficia del sabotaje tiene conflicto de intereses
+    kb.add_rule(Rule(
+        head=Predicate("conflicto_intereses", (X, E)),
+        body=(
+            Predicate("recibio_pagos_de", (X, E)),
+            Predicate("empresa_beneficiada", (E,)),
+        ),
+    ))
+
+    # El conflicto de intereses con la empresa beneficiada constituye motivo económico
+    kb.add_rule(Rule(
+        head=Predicate("motivo_economico", (X,)),
+        body=(Predicate("conflicto_intereses", (X, E)),),
+    ))
+
+    # Quien tuvo acceso registrado al lugar saboteado estuvo en el momento del crimen
+    kb.add_rule(Rule(
+        head=Predicate("acceso_en_momento", (X,)),
+        body=(Predicate("acceso_registrado", (X, L)),),
+    ))
+
+    # Quien sin coartada tiene motivo económico y estuvo en el lugar del sabotaje es culpable
+    kb.add_rule(Rule(
+        head=Predicate("culpable", (X,)),
+        body=(
+            Predicate("sin_coartada", (X,)),
+            Predicate("motivo_economico", (X,)),
+            Predicate("acceso_en_momento", (X,)),
+        ),
+    ))
+
+    # La denuncia de alguien que también estuvo en el lugar del sabotaje es una denuncia informada
+    kb.add_rule(Rule(
+        head=Predicate("denuncia_informada", (X, Y)),
+        body=(
+            Predicate("acusa", (X, Y)),
+            Predicate("acceso_en_momento", (X,)),
+        ),
+    ))
 
     return kb
 
