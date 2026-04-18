@@ -262,8 +262,11 @@ def flatten(formula: Formula) -> Formula:
           Si al final solo queda 1 elemento, retornalo directamente.
     """
     # === YOUR CODE HERE ===
-    if isinstance(formula, Atom) or isinstance(formula, Not):
+    if isinstance(formula, Atom):
         return formula
+ 
+    if isinstance(formula, Not):
+        return Not(flatten(formula.operand))
  
     if isinstance(formula, And):
         flat = []
